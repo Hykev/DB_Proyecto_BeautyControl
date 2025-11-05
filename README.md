@@ -53,6 +53,11 @@ py -3.11 -m venv .venv
 ```bash
 .\.venv\Scripts\activate
 ```
+Si no funciona intentar con este:
+
+```bash
+source .venv/Scripts/activate
+```
 
 Si se activó bien, deberías ver algo como `(.venv)` al inicio de la línea de la terminal.
 
