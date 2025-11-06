@@ -152,7 +152,7 @@ def audit_table() -> rx.Component:
                 rx.cond(
                     log["Users_ID"] != None,
                     log["Users_ID"],
-                    "-",
+                    "admin_1",
                 )
             ),
         )

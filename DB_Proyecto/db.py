@@ -252,17 +252,35 @@ def update_customer(
 
 
 def delete_customer(customer_id: int) -> tuple[bool, str | None]:
-    """Intenta eliminar un cliente. Devuelve (ok, mensaje_error)."""
+    """Intenta eliminar un cliente. Devuelve (ok, mensaje_error) y registra en Audit_log si procede."""
     conn = get_connection()
     cursor = conn.cursor()
     try:
         cursor.execute("DELETE FROM Customers WHERE ID = %s", (customer_id,))
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return False, "No se encontró el cliente a eliminar."
+
+        # Registrar en Audit_log solo si el DELETE fue exitoso
+        cursor.execute(
+            """
+            INSERT INTO Audit_log
+                (Fecha_evento, Tabla_afectada, `Operación`, Registro_ID, Users_ID)
+            VALUES (NOW(), 'Customers', 'DELETE', %s, NULL)
+            """,
+            (customer_id,),
+        )
+
         conn.commit()
         return True, None
     except IntegrityError:
-        # No se puede borrar porque tiene relaciones (devoluciones, órdenes, etc.)
-        return False, "No se puede eliminar el cliente porque tiene registros relacionados (por ejemplo, devoluciones u órdenes)."
+        conn.rollback()
+        return (
+            False,
+            "No se puede eliminar el cliente porque tiene registros relacionados (por ejemplo, órdenes o devoluciones)."
+        )
     except Error as e:
+        conn.rollback()
         return False, f"Error al eliminar cliente: {e}"
     finally:
         cursor.close()
@@ -388,15 +406,41 @@ def update_product(
 
 
 def delete_product(product_id: int) -> tuple[bool, str | None]:
+    """
+    Elimina un producto e inserta un registro en Audit_log si tiene éxito.
+    """
     conn = get_connection()
     cursor = conn.cursor()
     try:
+        # Intentamos borrar el producto
         cursor.execute("DELETE FROM Products WHERE ID = %s", (product_id,))
+        if cursor.rowcount == 0:
+            # No se borró nada (ID inexistente)
+            conn.rollback()
+            return False, "No se encontró el producto a eliminar."
+
+        # Si llegó aquí, el DELETE sí se realizó → registramos en Audit_log
+        cursor.execute(
+            """
+            INSERT INTO Audit_log
+                (Fecha_evento, Tabla_afectada, `Operación`, Registro_ID, Users_ID)
+            VALUES (NOW(), 'Products', 'DELETE', %s, NULL)
+            """,
+            (product_id,),
+        )
+
         conn.commit()
         return True, None
+
     except IntegrityError:
-        return False, "No se puede eliminar el producto porque aparece en órdenes o movimientos de inventario."
+        # FK: el producto tiene órdenes o movimientos de inventario asociados
+        conn.rollback()
+        return (
+            False,
+            "No se puede eliminar el producto porque aparece en órdenes o movimientos de inventario."
+        )
     except Error as e:
+        conn.rollback()
         return False, f"Error al eliminar producto: {e}"
     finally:
         cursor.close()
