@@ -406,9 +406,10 @@ def _views_selector() -> rx.Component:
                 "orange",
                 "gray",
             ),
-            # 👇 ESTA ES LA LÍNEA IMPORTANTE
-            on_click=lambda v=option["value"]: AnalyticsState.set_selected_view(v),
+            # 👈 sin parámetros; usamos directamente el valor de la opción
+            on_click=lambda: AnalyticsState.set_selected_view(option["value"]),
         )
+
 
     return rx.vstack(
         rx.text("Vistas analíticas:", font_weight="medium"),
@@ -556,9 +557,9 @@ def _queries_selector() -> rx.Component:
                 "orange",
                 "gray",
             ),
-            # 👇 Igual, usamos lambda con valor por defecto
-            on_click=lambda v=option["value"]: AnalyticsState.set_selected_query(v),
+            on_click=lambda: AnalyticsState.set_selected_query(option["value"]),
         )
+
 
     return rx.vstack(
         rx.text("Consultas avanzadas:", font_weight="medium"),
