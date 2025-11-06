@@ -406,7 +406,8 @@ def _views_selector() -> rx.Component:
                 "orange",
                 "gray",
             ),
-            on_click=AnalyticsState.set_selected_view(option["value"]),
+            # 👇 ESTA ES LA LÍNEA IMPORTANTE
+            on_click=lambda v=option["value"]: AnalyticsState.set_selected_view(v),
         )
 
     return rx.vstack(
@@ -447,6 +448,7 @@ def _views_table_section() -> rx.Component:
                     "← Anterior",
                     size="1",
                     variant="outline",
+                    
                     on_click=AnalyticsState.prev_view_page,
                 ),
                 rx.button(
@@ -554,7 +556,8 @@ def _queries_selector() -> rx.Component:
                 "orange",
                 "gray",
             ),
-            on_click=AnalyticsState.set_selected_query(option["value"]),
+            # 👇 Igual, usamos lambda con valor por defecto
+            on_click=lambda v=option["value"]: AnalyticsState.set_selected_query(v),
         )
 
     return rx.vstack(

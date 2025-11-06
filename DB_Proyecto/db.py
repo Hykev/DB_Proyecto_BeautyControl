@@ -1,5 +1,11 @@
 from mysql.connector import Error, IntegrityError
+import re
 
+_SQL_SELECT_SAFE = re.compile(r"^\s*SELECT\s", re.IGNORECASE)
+_FORBIDDEN_KEYWORDS = re.compile(
+    r"\b(DROP|DELETE|INSERT|UPDATE|ALTER|CREATE|TRUNCATE|REPLACE|GRANT|REVOKE)\b",
+    re.IGNORECASE,
+)
 """
 Capa de acceso a datos para el proyecto LootBox.
 
@@ -866,29 +872,55 @@ _ALLOWED_VIEWS = {
     "vw_abc_productos",
 }
 
-
 def get_view_data(view_name: str) -> list[dict]:
     """
     Ejecuta SELECT * sobre una vista permitida.
-    Esto sirve para el módulo de Analítica en la web.
+    view_name debe ser exactamente una de las opciones en _ALLOWED_VIEWS.
     """
+    # Validaciones estrictas:
+    if not isinstance(view_name, str):
+        print("get_view_data: view_name no es str")
+        return []
     if view_name not in _ALLOWED_VIEWS:
-        print("Vista no permitida:", view_name)
+        print("get_view_data: vista no permitida:", view_name)
         return []
 
-    query = f"SELECT * FROM {view_name}"
+    # Es seguro construir el identificador porque viene de la whitelist
+    query = f"SELECT * FROM `{view_name}`"
     return run_select(query)
-
 
 def run_sql_with_explain(sql: str, params: tuple | None = None, explain: bool = False) -> list[dict]:
     """
-    Ejecuta una consulta arbitraria (para módulo de analítica).
-    Si explain=True, ejecuta EXPLAIN <sql> en lugar de la consulta.
+    Ejecuta una consulta arbitraria **solo** si parece ser un SELECT y no contiene keywords prohibidas.
+    Si explain=True ejecuta EXPLAIN <sql>.
     """
+    if not isinstance(sql, str):
+        print("run_sql_with_explain: sql no es str")
+        return []
+
+    # Prohibir múltiples statements (;) y keywords peligrosas
+    if ";" in sql.strip().rstrip(";"):
+        print("run_sql_with_explain: múltiples statements detectados")
+        return []
+
+    if _FORBIDDEN_KEYWORDS.search(sql):
+        print("run_sql_with_explain: keyword prohibida en consulta")
+        return []
+
+    if not _SQL_SELECT_SAFE.match(sql):
+        print("run_sql_with_explain: solo se permiten SELECTs")
+        return []
+
     if explain:
         query = "EXPLAIN " + sql
     else:
         query = sql
+
+    # Limitar longitud para evitar abusos (opcional)
+    if len(query) > 5000:
+        print("run_sql_with_explain: sql demasiado larga")
+        return []
+
     return run_select(query, params or ())
 
 
