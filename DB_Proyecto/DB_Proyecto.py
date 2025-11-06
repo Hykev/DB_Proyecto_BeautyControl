@@ -1,6 +1,10 @@
 import reflex as rx
 from rxconfig import config
 from .pages.customers_page import customers_page
+from .pages.products_page import products_page
+from .pages.orders_page import orders_page
+from .pages.inventory_page import inventory_page
+from .pages.promos_loyalty_page import promos_loyalty_page
 
 
 # Si luego quieres usar la BD desde aquí:
@@ -190,31 +194,19 @@ def dashboard_content() -> rx.Component:
         resumen_section(),
         rx.cond(
             State.current_section == "customers",
-            customers_page(),  # <--- aquí reemplazamos el placeholder
+            customers_page(),
             rx.cond(
                 State.current_section == "products",
-                placeholder_section(
-                    "Productos",
-                    "Catálogo de figuras, funkos, cartas y otros coleccionables.",
-                ),
+                products_page(),
                 rx.cond(
                     State.current_section == "orders",
-                    placeholder_section(
-                        "Órdenes",
-                        "Listado de órdenes con detalle, pagos y envíos.",
-                    ),
+                    orders_page(),
                     rx.cond(
                         State.current_section == "inventory",
-                        placeholder_section(
-                            "Inventario & Logística",
-                            "Movimientos de inventario, bodegas y envíos.",
-                        ),
+                        inventory_page(),
                         rx.cond(
                             State.current_section == "promos",
-                            placeholder_section(
-                                "Promociones & Lealtad",
-                                "Gestión de promociones y puntos de clientes.",
-                            ),
+                            promos_loyalty_page(),  # <--- aquí usamos la vista real
                             rx.cond(
                                 State.current_section == "analytics",
                                 placeholder_section(
@@ -232,6 +224,7 @@ def dashboard_content() -> rx.Component:
             ),
         ),
     )
+
 
 
 # =========================
