@@ -7,16 +7,12 @@ from .pages.inventory_page import inventory_page
 from .pages.promos_loyalty_page import promos_loyalty_page
 from .pages.analytics_page import analytics_page
 from .pages.admin_audit_page import admin_audit_page
-
-
-# Si luego quieres usar la BD desde aquí:
-# from . import db
+from . import db
 
 
 # =========================
 # Estado global
 # =========================
-
 class State(rx.State):
     """Estado global de la app LootBox."""
 
@@ -32,16 +28,24 @@ class State(rx.State):
     # Mensajes generales (para mostrar info/errores arriba)
     global_message: str = ""
 
+    # --- KPIs del resumen (valores reales de la BD) ---
+    customers_count: int = 0
+    products_count: int = 0
+    orders_count: int = 0
+    returns_count: int = 0
+
     # ---------- LÓGICA DE LOGIN ----------
 
     def do_login(self):
         """Login mínimo: usuario / contraseña fijos por ahora."""
-        # Más adelante podemos validar contra la tabla Users.
+        # Más adelante se puede validar contra la tabla Users.
         if self.username == "admin" and self.password == "admin":
             self.logged_in = True
             self.login_error = ""
             self.global_message = "Bienvenido a LootBox, admin."
             self.current_section = "resumen"
+            # Al iniciar sesión cargamos los KPIs del dashboard:
+            self.load_dashboard_kpis()
         else:
             self.login_error = "Usuario o contraseña incorrectos."
 
@@ -58,6 +62,24 @@ class State(rx.State):
     def go_to(self, section: str):
         """Cambiar de sección en el dashboard."""
         self.current_section = section
+        # Si volvemos al resumen, recargamos KPIs (por si hubo cambios)
+        if section == "resumen":
+            self.load_dashboard_kpis()
+
+    # ---------- KPIs DEL RESUMEN ----------
+
+    def load_dashboard_kpis(self):
+        """Carga los totales reales de la base de datos para el resumen."""
+        # Cada run_select ya maneja errores y devuelve [] si algo falla.
+        clientes = db.run_select("SELECT COUNT(*) AS c FROM Customers")
+        productos = db.run_select("SELECT COUNT(*) AS c FROM Products")
+        ordenes = db.run_select("SELECT COUNT(*) AS c FROM Ordenes")
+        devoluciones = db.run_select("SELECT COUNT(*) AS c FROM Devoluciones")
+
+        self.customers_count = clientes[0]["c"] if clientes else 0
+        self.products_count = productos[0]["c"] if productos else 0
+        self.orders_count = ordenes[0]["c"] if ordenes else 0
+        self.returns_count = devoluciones[0]["c"] if devoluciones else 0
 
 
 # =========================
@@ -127,26 +149,26 @@ def shell(content: rx.Component) -> rx.Component:
 # =========================
 # Secciones del dashboard (contenido principal)
 # =========================
-
 def resumen_section() -> rx.Component:
-    """Sección de resumen inicial (KPI dummy por ahora)."""
+    """Sección de resumen inicial con KPIs reales."""
     return rx.vstack(
         rx.heading("Resumen general", size="6", color="orange.9"),
         rx.text(
-            "Bienvenido al panel de LootBox. Aquí verás un resumen de clientes, productos, órdenes e inventario.",
+            "Bienvenido al panel de LootBox. Aquí ves un resumen en tiempo real de clientes, productos, órdenes y devoluciones.",
             color="gray.9",
         ),
         rx.hstack(
-            _kpi_card("Clientes", "500+", "Coleccionistas registrados"),
-            _kpi_card("Productos", "2,000+", "Figuras, funkos y más"),
-            _kpi_card("Órdenes", "5,000+", "Historial de compras"),
-            _kpi_card("Devoluciones", "600", "Gestión de returns"),
+            _kpi_card("Clientes", State.customers_count, "Coleccionistas registrados"),
+            _kpi_card("Productos", State.products_count, "Figuras, funkos y más"),
+            _kpi_card("Órdenes", State.orders_count, "Historial de compras"),
+            _kpi_card("Devoluciones", State.returns_count, "Gestión de devoluciones"),
             spacing="4",
             wrap="wrap",
         ),
         spacing="4",
         width="100%",
     )
+
 
 
 def _kpi_card(title: str, value: str, subtitle: str) -> rx.Component:
@@ -270,7 +292,6 @@ def sidebar() -> rx.Component:
         box_shadow="0 10px 30px rgba(15, 23, 42, 0.08)",
     )
 
-
 def dashboard_page() -> rx.Component:
     """Estructura completa del dashboard."""
     return shell(
@@ -298,9 +319,9 @@ def dashboard_page() -> rx.Component:
             ),
             spacing="3",
             align_items="flex-start",
+            on_mount=State.load_dashboard_kpis,
         )
     )
-
 
 # =========================
 # Login Page
